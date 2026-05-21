@@ -3,6 +3,7 @@ members = [
     "crates/slsk-proto",
     "crates/slsk-core",
     "crates/slsk-gui",
+    "crates/slsk-mock",
 ]
 resolver = "2"
 

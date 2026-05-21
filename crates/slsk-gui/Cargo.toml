@@ -3,8 +3,13 @@ name = "slsk-gui"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["gtk"]
+gtk = ["slsk-core"]
+mock-ui = ["slsk-core"]
+
 [dependencies]
-slsk-core = { path = "../slsk-core" }
-gtk4      = { version = "0.9", package = "gtk4" }
-adw       = { version = "0.7", package = "libadwaita", features = ["v1_6"] }
-glib      = "0.20"
+slsk-core = { path = "../slsk-core", optional = true }
+gtk4 = { version = "0.9", package = "gtk4", optional = true }
+adw = { version = "0.7", package = "libadwaita", features = ["v1_6"], optional = true }
+glib = { version = "0.20", optional = true }

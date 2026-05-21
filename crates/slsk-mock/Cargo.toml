@@ -1,0 +1,11 @@
+[package]
+name = "slsk-mock"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+slsk-core = { path = "../slsk-core" }
+
+[[bin]]
+name = "slsk-mock"
+path = "src/main.rs"
