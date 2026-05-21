@@ -1,0 +1,10 @@
+[package]
+name = "slsk-proto"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytes     = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]

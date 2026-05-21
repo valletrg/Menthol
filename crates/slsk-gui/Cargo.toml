@@ -1,0 +1,10 @@
+[package]
+name = "slsk-gui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+slsk-core = { path = "../slsk-core" }
+gtk4      = { version = "0.9", package = "gtk4" }
+adw       = { version = "0.7", package = "libadwaita", features = ["v1_6"] }
+glib      = "0.20"

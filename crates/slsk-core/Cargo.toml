@@ -1,0 +1,10 @@
+[package]
+name = "slsk-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+slsk-proto = { path = "../slsk-proto" }
+tokio      = { workspace = true }
+thiserror  = { workspace = true }
+tracing    = { workspace = true }
