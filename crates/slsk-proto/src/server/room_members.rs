@@ -1,14 +1,14 @@
-use bytes::{Buf, BufMut};
-use crate::codec::{SlskRead, SlskWrite};
+use crate::codec::SlskRead;
 use crate::error::ProtoError;
+use bytes::Buf;
 
 pub const CODE: u32 = 133;
 
 #[derive(Debug, Clone)]
 pub struct RoomMembersResponse {
-    pub room:         String,
-    pub num_members:  u32,
-    pub members:      Vec<String>,
+    pub room: String,
+    pub num_members: u32,
+    pub members: Vec<String>,
 }
 
 impl SlskRead for RoomMembersResponse {
@@ -19,7 +19,11 @@ impl SlskRead for RoomMembersResponse {
         for _ in 0..num_members {
             members.push(String::read(buf)?);
         }
-        Ok(Self { room, num_members, members })
+        Ok(Self {
+            room,
+            num_members,
+            members,
+        })
     }
 }
 

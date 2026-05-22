@@ -1,25 +1,25 @@
-use bytes::{Buf, BufMut};
-use crate::codec::{SlskRead, SlskWrite};
+use crate::codec::SlskRead;
 use crate::error::ProtoError;
+use bytes::Buf;
 
 pub const CODE: u32 = 64;
 
 #[derive(Debug, Clone)]
 pub struct RoomListResponse {
-    pub num_rooms:         u32,
-    pub rooms:             Vec<String>,
-    pub num_counts:         u32,
-    pub user_counts:        Vec<u32>,
-    pub num_owned:          u32,
-    pub owned_rooms:        Vec<String>,
-    pub num_owned_counts:   u32,
-    pub owned_user_counts:  Vec<u32>,
-    pub num_private:        u32,
-    pub private_rooms:      Vec<String>,
+    pub num_rooms: u32,
+    pub rooms: Vec<String>,
+    pub num_counts: u32,
+    pub user_counts: Vec<u32>,
+    pub num_owned: u32,
+    pub owned_rooms: Vec<String>,
+    pub num_owned_counts: u32,
+    pub owned_user_counts: Vec<u32>,
+    pub num_private: u32,
+    pub private_rooms: Vec<String>,
     pub num_private_counts: u32,
     pub private_user_counts: Vec<u32>,
-    pub num_operated:       u32,
-    pub operated_rooms:     Vec<String>,
+    pub num_operated: u32,
+    pub operated_rooms: Vec<String>,
 }
 
 impl SlskRead for RoomListResponse {

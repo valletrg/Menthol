@@ -10,15 +10,17 @@ pub struct WishlistInterval {
 
 impl crate::codec::SlskRead for WishlistInterval {
     fn read(buf: &mut impl Buf) -> Result<Self, crate::error::ProtoError> {
-        Ok(Self { interval: u32::read(buf)? })
+        Ok(Self {
+            interval: u32::read(buf)?,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn wishlist_interval_decode() {

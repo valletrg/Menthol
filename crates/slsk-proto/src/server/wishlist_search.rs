@@ -1,5 +1,5 @@
-use bytes::BufMut;
 use crate::codec::SlskWrite;
+use bytes::BufMut;
 
 pub const CODE: u32 = 103;
 
@@ -19,8 +19,8 @@ impl SlskWrite for WishlistSearchRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn wishlist_search_round_trip() {

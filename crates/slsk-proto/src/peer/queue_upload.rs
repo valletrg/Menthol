@@ -1,6 +1,6 @@
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u32 = 43;
 
@@ -29,8 +29,8 @@ impl SlskRead for QueueUpload {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn queue_upload_round_trip() {

@@ -1,5 +1,5 @@
-use bytes::BufMut;
 use crate::codec::SlskWrite;
+use bytes::BufMut;
 
 pub const CODE: u32 = 121;
 
@@ -17,8 +17,8 @@ impl SlskWrite for SendUploadSpeedRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn send_upload_speed_round_trip() {

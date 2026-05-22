@@ -1,6 +1,6 @@
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u32 = 46;
 
@@ -11,7 +11,9 @@ pub struct UploadFailed {
 
 impl SlskRead for UploadFailed {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
-        Ok(Self { filename: String::read(buf)? })
+        Ok(Self {
+            filename: String::read(buf)?,
+        })
     }
 }
 
@@ -24,12 +26,14 @@ impl SlskWrite for UploadFailed {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn upload_failed_round_trip() {
-        let req = UploadFailed { filename: "song.mp3".into() };
+        let req = UploadFailed {
+            filename: "song.mp3".into(),
+        };
         let mut buf = BytesMut::new();
         req.write(&mut buf);
         let mut buf = buf.freeze();

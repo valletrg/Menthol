@@ -1,13 +1,13 @@
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u32 = 134;
 
 // AddRoomMember is bidirectional
 #[derive(Debug, Clone)]
 pub struct AddRoomMemberRequest {
-    pub room:     String,
+    pub room: String,
     pub username: String,
 }
 
@@ -20,14 +20,14 @@ impl SlskWrite for AddRoomMemberRequest {
 
 #[derive(Debug, Clone)]
 pub struct AddRoomMemberResponse {
-    pub room:     String,
+    pub room: String,
     pub username: String,
 }
 
 impl SlskRead for AddRoomMemberResponse {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
         Ok(Self {
-            room:     String::read(buf)?,
+            room: String::read(buf)?,
             username: String::read(buf)?,
         })
     }

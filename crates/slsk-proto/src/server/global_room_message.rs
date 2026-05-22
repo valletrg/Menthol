@@ -1,22 +1,22 @@
-use bytes::{Buf, BufMut};
-use crate::codec::{SlskRead, SlskWrite};
+use crate::codec::SlskRead;
 use crate::error::ProtoError;
+use bytes::Buf;
 
 pub const CODE: u32 = 152;
 
 #[derive(Debug, Clone)]
 pub struct GlobalRoomMessageResponse {
-    pub room:     String,
+    pub room: String,
     pub username: String,
-    pub message:  String,
+    pub message: String,
 }
 
 impl SlskRead for GlobalRoomMessageResponse {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
         Ok(Self {
-            room:     String::read(buf)?,
+            room: String::read(buf)?,
             username: String::read(buf)?,
-            message:  String::read(buf)?,
+            message: String::read(buf)?,
         })
     }
 }

@@ -1,6 +1,6 @@
-use bytes::{Buf, BufMut};
-use crate::codec::{SlskRead, SlskWrite};
+use crate::codec::SlskRead;
 use crate::error::ProtoError;
+use bytes::Buf;
 
 pub const CODE: u32 = 83;
 
@@ -12,7 +12,9 @@ pub struct ParentMinSpeedResponse {
 
 impl SlskRead for ParentMinSpeedResponse {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
-        Ok(Self { speed: u32::read(buf)? })
+        Ok(Self {
+            speed: u32::read(buf)?,
+        })
     }
 }
 

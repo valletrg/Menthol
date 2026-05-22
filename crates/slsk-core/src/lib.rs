@@ -1,13 +1,16 @@
 #![allow(dead_code)]
-pub mod error;
-pub mod config;
-pub mod event;
 pub mod command;
+pub mod config;
+pub mod error;
+pub mod event;
+pub mod io;
 pub mod network;
+pub mod transfer;
 
+pub use command::Command;
 pub use config::Config;
 pub use event::Event;
-pub use command::Command;
+pub use network::server::ConnectionHandle;
 pub use network::state::{ConnectionState, DisconnectReason, ServerStats};
 
 use tokio::sync::mpsc;
@@ -39,40 +42,28 @@ impl CoreHandle {
     }
 
     pub fn poll_event(&mut self) -> Option<Event> {
-        self.evt_rx.blocking_recv()
+        self.evt_rx.try_recv().ok()
     }
 }
 
 /// The core async entry point
-async fn run_core(
-    config: Config,
-    mut cmd_rx: mpsc::Receiver<Command>,
-    evt_tx: mpsc::Sender<Event>,
-) {
-    // Initialize tracing
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
-        .init();
+async fn run_core(config: Config, cmd_rx: mpsc::Receiver<Command>, evt_tx: mpsc::Sender<Event>) {
+    // Note: tracing is initialized by the GUI in main(), not here.
+    // Multiple calls to init() would panic.
 
     tracing::info!("slsk-core starting with config: {:?}", config);
 
-    // Simple command loop - handle connect/disconnect/search commands
-    while let Some(cmd) = cmd_rx.recv().await {
-        match cmd {
-            Command::Connect { username, password } => {
-                tracing::info!("connect requested with username: {}", username);
-                // TODO: spawn server connection
-                let _ = evt_tx.send(Event::LoginFailed { reason: "not implemented yet".into() }).await;
-            }
-            Command::Disconnect => {
-                tracing::info!("disconnect requested");
-            }
-            Command::Search { query, token } => {
-                tracing::debug!("search: token={} query={}", token, query);
-            }
-            Command::QueueDownload { username, filename, size } => {
-                tracing::debug!("queue download: {} from {} ({} bytes)", filename, username, size);
-            }
+    // Connect to server. We pass cmd_rx and our evt_tx so events go directly
+    // to the CoreHandle's external channel.
+    match crate::network::server::connect(&config, cmd_rx, evt_tx).await {
+        Ok(_) => {
+            // Connection is running. Wait forever - the spawned task handles everything.
+            // The GUI reads events from CoreHandle.evt_rx which we wired up.
+            std::future::pending::<()>().await;
+        }
+        Err(e) => {
+            tracing::error!("failed to connect: {}", e);
+            // Can't send event here - the other side already disconnected
         }
     }
 

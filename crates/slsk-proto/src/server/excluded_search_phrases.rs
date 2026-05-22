@@ -1,13 +1,13 @@
-use bytes::{Buf, BufMut};
-use crate::codec::{SlskRead, SlskWrite};
+use crate::codec::SlskRead;
 use crate::error::ProtoError;
+use bytes::Buf;
 
 pub const CODE: u32 = 160;
 
 #[derive(Debug, Clone)]
 pub struct ExcludedSearchPhrasesResponse {
     pub num_phrases: u32,
-    pub phrases:     Vec<String>,
+    pub phrases: Vec<String>,
 }
 
 impl SlskRead for ExcludedSearchPhrasesResponse {
@@ -17,7 +17,10 @@ impl SlskRead for ExcludedSearchPhrasesResponse {
         for _ in 0..num_phrases {
             phrases.push(String::read(buf)?);
         }
-        Ok(Self { num_phrases, phrases })
+        Ok(Self {
+            num_phrases,
+            phrases,
+        })
     }
 }
 

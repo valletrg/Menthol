@@ -1,6 +1,6 @@
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u32 = 7;
 
@@ -17,16 +17,16 @@ impl SlskWrite for GetUserStatusRequest {
 
 #[derive(Debug, Clone)]
 pub struct GetUserStatusResponse {
-    pub username:  String,
-    pub status:    u32,
+    pub username: String,
+    pub status: u32,
     pub privileged: bool,
 }
 
 impl SlskRead for GetUserStatusResponse {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
         Ok(Self {
-            username:  String::read(buf)?,
-            status:    u32::read(buf)?,
+            username: String::read(buf)?,
+            status: u32::read(buf)?,
             privileged: bool::read(buf)?,
         })
     }
@@ -35,12 +35,14 @@ impl SlskRead for GetUserStatusResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn get_user_status_request_round_trip() {
-        let req = GetUserStatusRequest { username: "alice".into() };
+        let req = GetUserStatusRequest {
+            username: "alice".into(),
+        };
         let mut buf = BytesMut::new();
         req.write(&mut buf);
         let mut buf = buf.freeze();

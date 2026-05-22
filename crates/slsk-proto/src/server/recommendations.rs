@@ -1,16 +1,16 @@
-use bytes::{Buf, BufMut};
-use crate::codec::{SlskRead, SlskWrite};
+use crate::codec::SlskRead;
 use crate::error::ProtoError;
+use bytes::Buf;
 
 pub const CODE: u32 = 54;
 
 // Recommendations is receive-only
 #[derive(Debug, Clone)]
 pub struct RecommendationsResponse {
-    pub num_recommendations:   u32,
-    pub recommendations:       Vec<(String, i32)>,
+    pub num_recommendations: u32,
+    pub recommendations: Vec<(String, i32)>,
     pub num_unrecommendations: u32,
-    pub unrecommendations:     Vec<(String, i32)>,
+    pub unrecommendations: Vec<(String, i32)>,
 }
 
 impl SlskRead for RecommendationsResponse {
@@ -25,7 +25,12 @@ impl SlskRead for RecommendationsResponse {
         for _ in 0..num_unrecommendations {
             unrecommendations.push((String::read(buf)?, i32::read(buf)?));
         }
-        Ok(Self { num_recommendations, recommendations, num_unrecommendations, unrecommendations })
+        Ok(Self {
+            num_recommendations,
+            recommendations,
+            num_unrecommendations,
+            unrecommendations,
+        })
     }
 }
 

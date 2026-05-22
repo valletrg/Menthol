@@ -1,6 +1,6 @@
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u32 = 15;
 

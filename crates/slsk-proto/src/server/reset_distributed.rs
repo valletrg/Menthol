@@ -15,8 +15,8 @@ impl crate::codec::SlskRead for ResetDistributed {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn reset_distributed_decode() {

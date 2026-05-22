@@ -1,12 +1,11 @@
-use bytes::{Buf, BufMut};
-use crate::codec::{SlskRead, SlskWrite};
-use crate::error::ProtoError;
+use crate::codec::SlskWrite;
+use bytes::BufMut;
 
 pub const CODE: u32 = 120;
 
 #[derive(Debug, Clone)]
 pub struct RoomSearchRequest {
-    pub room:  String,
+    pub room: String,
     pub token: u32,
     pub query: String,
 }
@@ -22,8 +21,8 @@ impl SlskWrite for RoomSearchRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn room_search_round_trip() {

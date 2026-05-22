@@ -1,5 +1,5 @@
-use bytes::BufMut;
 use crate::codec::SlskWrite;
+use bytes::BufMut;
 
 pub const CODE: u32 = 71;
 
@@ -17,8 +17,8 @@ impl SlskWrite for HaveNoParentRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn have_no_parent_round_trip() {

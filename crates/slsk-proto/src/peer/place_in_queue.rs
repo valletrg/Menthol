@@ -1,20 +1,20 @@
-use bytes::{Buf, BufMut};
-use crate::codec::{SlskRead, SlskWrite};
+use crate::codec::SlskRead;
 use crate::error::ProtoError;
+use bytes::Buf;
 
 pub const CODE: u32 = 44;
 
 #[derive(Debug, Clone)]
 pub struct PlaceInQueueResponse {
     pub filename: String,
-    pub place:    u32,
+    pub place: u32,
 }
 
 impl SlskRead for PlaceInQueueResponse {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
         Ok(Self {
             filename: String::read(buf)?,
-            place:    u32::read(buf)?,
+            place: u32::read(buf)?,
         })
     }
 }

@@ -1,16 +1,16 @@
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
 use crate::types::TransferDirection;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u32 = 40;
 
 #[derive(Debug, Clone)]
 pub struct TransferRequest {
     pub direction: TransferDirection,
-    pub token:     u32,
-    pub username:  String,
-    pub filename:  String,
+    pub token: u32,
+    pub username: String,
+    pub filename: String,
     pub file_size: Option<u64>,
 }
 
@@ -39,15 +39,21 @@ impl SlskRead for TransferRequest {
         } else {
             None
         };
-        Ok(Self { direction, token, username, filename, file_size })
+        Ok(Self {
+            direction,
+            token,
+            username,
+            filename,
+            file_size,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn transfer_request_download_round_trip() {
@@ -61,7 +67,10 @@ mod tests {
         let mut buf = BytesMut::new();
         req.write(&mut buf);
         let mut buf = buf.freeze();
-        assert_eq!(TransferDirection::read(&mut buf).unwrap(), TransferDirection::Download);
+        assert_eq!(
+            TransferDirection::read(&mut buf).unwrap(),
+            TransferDirection::Download
+        );
         assert_eq!(u32::read(&mut buf).unwrap(), 123);
         assert_eq!(String::read(&mut buf).unwrap(), "alice");
         assert_eq!(String::read(&mut buf).unwrap(), "song.mp3");

@@ -1,5 +1,5 @@
-use bytes::BufMut;
 use crate::codec::SlskWrite;
+use bytes::BufMut;
 
 pub const CODE: u32 = 2;
 
@@ -34,6 +34,6 @@ mod tests {
         assert_eq!(u32::read(&mut buf).unwrap(), 2234);
     }
 
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 }

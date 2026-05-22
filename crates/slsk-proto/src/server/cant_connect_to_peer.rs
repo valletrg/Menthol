@@ -1,12 +1,12 @@
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u32 = 1001;
 
 #[derive(Debug, Clone)]
 pub struct CantConnectToPeerRequest {
-    pub token:    u32,
+    pub token: u32,
     pub username: String,
 }
 
@@ -24,15 +24,17 @@ pub struct CantConnectToPeerResponse {
 
 impl SlskRead for CantConnectToPeerResponse {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
-        Ok(Self { token: u32::read(buf)? })
+        Ok(Self {
+            token: u32::read(buf)?,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn cant_connect_to_peer_request_round_trip() {

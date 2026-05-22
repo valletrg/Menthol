@@ -1,12 +1,12 @@
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u32 = 14;
 
 #[derive(Debug, Clone)]
 pub struct JoinRoomRequest {
-    pub room:    String,
+    pub room: String,
     pub private: u32,
 }
 
@@ -19,17 +19,17 @@ impl SlskWrite for JoinRoomRequest {
 
 #[derive(Debug, Clone)]
 pub struct JoinRoomResponse {
-    pub room:          String,
-    pub num_users:     u32,
-    pub users:         Vec<String>,
-    pub num_statuses:  u32,
-    pub statuses:      Vec<u32>,
-    pub num_stats:     u32,
-    pub stats:         Vec<(u32, u32, u32, u32, u32)>, // avgspeed, uploadnum, unknown, files, dirs
+    pub room: String,
+    pub num_users: u32,
+    pub users: Vec<String>,
+    pub num_statuses: u32,
+    pub statuses: Vec<u32>,
+    pub num_stats: u32,
+    pub stats: Vec<(u32, u32, u32, u32, u32)>, // avgspeed, uploadnum, unknown, files, dirs
     pub num_slotsfull: u32,
-    pub slotsfull:     Vec<u32>,
+    pub slotsfull: Vec<u32>,
     pub num_countries: u32,
-    pub countries:     Vec<String>,
+    pub countries: Vec<String>,
     // Private room fields omitted for now
 }
 
@@ -86,8 +86,8 @@ impl SlskRead for JoinRoomResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn join_room_request_round_trip() {

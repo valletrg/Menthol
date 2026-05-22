@@ -1,6 +1,6 @@
-use bytes::{Buf, BufMut};
-use crate::codec::{SlskRead, SlskWrite};
+use crate::codec::SlskRead;
 use crate::error::ProtoError;
+use bytes::Buf;
 
 pub const CODE: u32 = 66;
 
@@ -12,7 +12,9 @@ pub struct AdminMessageResponse {
 
 impl SlskRead for AdminMessageResponse {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
-        Ok(Self { message: String::read(buf)? })
+        Ok(Self {
+            message: String::read(buf)?,
+        })
     }
 }
 
@@ -24,7 +26,8 @@ mod tests {
     fn admin_message_decode() {
         let raw: &[u8] = &[
             0x0d, 0x00, 0x00, 0x00, // len=13
-            0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x55, 0x73, 0x65, 0x72, 0x21, 0x21, 0x21, // "Hello User!!!"
+            0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x55, 0x73, 0x65, 0x72, 0x21, 0x21,
+            0x21, // "Hello User!!!"
         ];
         let mut buf = bytes::Bytes::from_static(raw);
         let resp = AdminMessageResponse::read(&mut buf).unwrap();

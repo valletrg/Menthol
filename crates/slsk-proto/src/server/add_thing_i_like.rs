@@ -1,6 +1,5 @@
-use bytes::{Buf, BufMut};
-use crate::codec::{SlskRead, SlskWrite};
-use crate::error::ProtoError;
+use crate::codec::SlskWrite;
+use bytes::BufMut;
 
 pub const CODE: u32 = 51;
 
@@ -19,12 +18,14 @@ impl SlskWrite for AddThingILikeRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn add_thing_i_like_round_trip() {
-        let req = AddThingILikeRequest { item: "rock".into() };
+        let req = AddThingILikeRequest {
+            item: "rock".into(),
+        };
         let mut buf = BytesMut::new();
         req.write(&mut buf);
         let mut buf = buf.freeze();

@@ -1,8 +1,8 @@
 // Distributed message structs
 
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u8 = 3; // DistribSearch code
 
@@ -31,8 +31,8 @@ impl SlskRead for DistribSearch {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn distrib_search_round_trip() {

@@ -1,13 +1,13 @@
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u32 = 22;
 
 #[derive(Debug, Clone)]
 pub struct MessageUserRequest {
     pub username: String,
-    pub message:  String,
+    pub message: String,
 }
 
 impl SlskWrite for MessageUserRequest {
@@ -19,21 +19,21 @@ impl SlskWrite for MessageUserRequest {
 
 #[derive(Debug, Clone)]
 pub struct MessageUserResponse {
-    pub id:       u32,
+    pub id: u32,
     pub timestamp: u32,
     pub username: String,
-    pub message:  String,
-    pub new_msg:  bool,
+    pub message: String,
+    pub new_msg: bool,
 }
 
 impl SlskRead for MessageUserResponse {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
         Ok(Self {
-            id:        u32::read(buf)?,
+            id: u32::read(buf)?,
             timestamp: u32::read(buf)?,
-            username:  String::read(buf)?,
-            message:   String::read(buf)?,
-            new_msg:   bool::read(buf)?,
+            username: String::read(buf)?,
+            message: String::read(buf)?,
+            new_msg: bool::read(buf)?,
         })
     }
 }
@@ -41,14 +41,14 @@ impl SlskRead for MessageUserResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn message_user_request_round_trip() {
         let req = MessageUserRequest {
             username: "alice".into(),
-            message:  "hi there".into(),
+            message: "hi there".into(),
         };
         let mut buf = BytesMut::new();
         req.write(&mut buf);

@@ -1,7 +1,7 @@
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
 use crate::types::UserStatus;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u32 = 5;
 
@@ -18,15 +18,15 @@ impl SlskWrite for WatchUserRequest {
 
 #[derive(Debug, Clone)]
 pub struct WatchUserResponse {
-    pub username:  String,
-    pub exists:    bool,
-    pub status:    Option<UserStatus>,
-    pub avgspeed:  Option<u32>,
+    pub username: String,
+    pub exists: bool,
+    pub status: Option<UserStatus>,
+    pub avgspeed: Option<u32>,
     pub uploadnum: Option<u32>,
-    pub unknown:   Option<u32>,
-    pub files:     Option<u32>,
-    pub dirs:      Option<u32>,
-    pub country:   Option<String>,
+    pub unknown: Option<u32>,
+    pub files: Option<u32>,
+    pub dirs: Option<u32>,
+    pub country: Option<String>,
 }
 
 impl SlskRead for WatchUserResponse {
@@ -74,12 +74,14 @@ impl SlskRead for WatchUserResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn watch_user_request_round_trip() {
-        let req = WatchUserRequest { username: "alice".into() };
+        let req = WatchUserRequest {
+            username: "alice".into(),
+        };
         let mut buf = BytesMut::new();
         req.write(&mut buf);
         let mut buf = buf.freeze();

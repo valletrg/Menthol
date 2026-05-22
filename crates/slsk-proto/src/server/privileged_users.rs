@@ -1,13 +1,13 @@
-use bytes::{Buf, BufMut};
-use crate::codec::{SlskRead, SlskWrite};
+use crate::codec::SlskRead;
 use crate::error::ProtoError;
+use bytes::Buf;
 
 pub const CODE: u32 = 69;
 
 #[derive(Debug, Clone)]
 pub struct PrivilegedUsersResponse {
     pub num_users: u32,
-    pub users:     Vec<String>,
+    pub users: Vec<String>,
 }
 
 impl SlskRead for PrivilegedUsersResponse {

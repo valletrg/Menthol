@@ -1,6 +1,6 @@
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u32 = 3;
 
@@ -17,20 +17,20 @@ impl SlskWrite for GetPeerAddressRequest {
 
 #[derive(Debug, Clone)]
 pub struct GetPeerAddressResponse {
-    pub username:       String,
-    pub ip:             u32,
-    pub port:           u32,
-    pub obfuscation:    u32,
+    pub username: String,
+    pub ip: u32,
+    pub port: u32,
+    pub obfuscation: u32,
     pub obfuscated_port: u16,
 }
 
 impl SlskRead for GetPeerAddressResponse {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
         Ok(Self {
-            username:        String::read(buf)?,
-            ip:              u32::read(buf)?,
-            port:            u32::read(buf)?,
-            obfuscation:     u32::read(buf)?,
+            username: String::read(buf)?,
+            ip: u32::read(buf)?,
+            port: u32::read(buf)?,
+            obfuscation: u32::read(buf)?,
             obfuscated_port: u16::read(buf)?,
         })
     }
@@ -39,12 +39,14 @@ impl SlskRead for GetPeerAddressResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn get_peer_address_request_round_trip() {
-        let req = GetPeerAddressRequest { username: "testuser".into() };
+        let req = GetPeerAddressRequest {
+            username: "testuser".into(),
+        };
         let mut buf = BytesMut::new();
         req.write(&mut buf);
         let mut buf = buf.freeze();

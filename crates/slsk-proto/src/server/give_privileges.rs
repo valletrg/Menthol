@@ -1,6 +1,5 @@
-use bytes::{Buf, BufMut};
-use crate::codec::{SlskRead, SlskWrite};
-use crate::error::ProtoError;
+use crate::codec::SlskWrite;
+use bytes::BufMut;
 
 pub const CODE: u32 = 123;
 
@@ -8,7 +7,7 @@ pub const CODE: u32 = 123;
 #[derive(Debug, Clone)]
 pub struct GivePrivilegesRequest {
     pub username: String,
-    pub days:     u32,
+    pub days: u32,
 }
 
 impl SlskWrite for GivePrivilegesRequest {
@@ -21,8 +20,8 @@ impl SlskWrite for GivePrivilegesRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn give_privileges_round_trip() {

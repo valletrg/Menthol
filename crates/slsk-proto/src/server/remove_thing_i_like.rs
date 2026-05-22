@@ -1,5 +1,5 @@
-use bytes::BufMut;
 use crate::codec::SlskWrite;
+use bytes::BufMut;
 
 pub const CODE: u32 = 52;
 
@@ -18,12 +18,14 @@ impl SlskWrite for RemoveThingILikeRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn remove_thing_i_like_round_trip() {
-        let req = RemoveThingILikeRequest { item: "rock".into() };
+        let req = RemoveThingILikeRequest {
+            item: "rock".into(),
+        };
         let mut buf = BytesMut::new();
         req.write(&mut buf);
         let mut buf = buf.freeze();

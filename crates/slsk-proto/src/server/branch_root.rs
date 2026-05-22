@@ -1,5 +1,5 @@
-use bytes::BufMut;
 use crate::codec::SlskWrite;
+use bytes::BufMut;
 
 pub const CODE: u32 = 127;
 
@@ -17,12 +17,14 @@ impl SlskWrite for BranchRootRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn branch_root_round_trip() {
-        let req = BranchRootRequest { branch_root: "rootuser".into() };
+        let req = BranchRootRequest {
+            branch_root: "rootuser".into(),
+        };
         let mut buf = BytesMut::new();
         req.write(&mut buf);
         let mut buf = buf.freeze();

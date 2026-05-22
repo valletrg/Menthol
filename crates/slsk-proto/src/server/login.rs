@@ -1,15 +1,15 @@
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u32 = 1;
 
 #[derive(Debug, Clone)]
 pub struct LoginRequest {
-    pub username:      String,
-    pub password:      String,
+    pub username: String,
+    pub password: String,
     pub major_version: u32,
-    pub hash:          String,
+    pub hash: String,
     pub minor_version: u32,
 }
 
@@ -26,9 +26,9 @@ impl SlskWrite for LoginRequest {
 #[derive(Debug, Clone)]
 pub enum LoginResponse {
     Success {
-        greet:        String,
-        own_ip:       u32,
-        hash:         String,
+        greet: String,
+        own_ip: u32,
+        hash: String,
         is_supporter: bool,
     },
     Failure {
@@ -42,9 +42,9 @@ impl SlskRead for LoginResponse {
         let success = bool::read(buf)?;
         if success {
             Ok(Self::Success {
-                greet:        String::read(buf)?,
-                own_ip:       u32::read(buf)?,
-                hash:         String::read(buf)?,
+                greet: String::read(buf)?,
+                own_ip: u32::read(buf)?,
+                hash: String::read(buf)?,
                 is_supporter: bool::read(buf)?,
             })
         } else {
@@ -66,10 +66,10 @@ mod tests {
     #[test]
     fn login_request_round_trip() {
         let req = LoginRequest {
-            username:      "testuser".into(),
-            password:      "testpass".into(),
+            username: "testuser".into(),
+            password: "testpass".into(),
             major_version: 160,
-            hash:          "d51c9a7e9353746a6020f9602d452929".into(),
+            hash: "d51c9a7e9353746a6020f9602d452929".into(),
             minor_version: 2,
         };
         let mut buf = BytesMut::new();
@@ -78,7 +78,10 @@ mod tests {
         assert_eq!(String::read(&mut buf).unwrap(), "testuser");
         assert_eq!(String::read(&mut buf).unwrap(), "testpass");
         assert_eq!(u32::read(&mut buf).unwrap(), 160);
-        assert_eq!(String::read(&mut buf).unwrap(), "d51c9a7e9353746a6020f9602d452929");
+        assert_eq!(
+            String::read(&mut buf).unwrap(),
+            "d51c9a7e9353746a6020f9602d452929"
+        );
         assert_eq!(u32::read(&mut buf).unwrap(), 2);
     }
 
@@ -97,7 +100,12 @@ mod tests {
         let mut buf = bytes::Bytes::from_static(raw);
         let resp = LoginResponse::read(&mut buf).unwrap();
         match resp {
-            LoginResponse::Success { greet, own_ip, hash, is_supporter } => {
+            LoginResponse::Success {
+                greet,
+                own_ip,
+                hash,
+                is_supporter,
+            } => {
                 assert_eq!(greet, "hello");
                 assert_eq!(own_ip, 0x01020304);
                 assert_eq!(hash, "abc123");

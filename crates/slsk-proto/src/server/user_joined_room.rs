@@ -1,36 +1,36 @@
-use bytes::{Buf, BufMut};
-use crate::codec::{SlskRead, SlskWrite};
+use crate::codec::SlskRead;
 use crate::error::ProtoError;
+use bytes::Buf;
 
 pub const CODE: u32 = 16;
 
 #[derive(Debug, Clone)]
 pub struct UserJoinedRoom {
-    pub room:      String,
-    pub username:  String,
-    pub status:    u32,
-    pub avgspeed:  u32,
-    pub uploadnum:  u32,
-    pub unknown:   u32,
-    pub files:     u32,
-    pub dirs:      u32,
+    pub room: String,
+    pub username: String,
+    pub status: u32,
+    pub avgspeed: u32,
+    pub uploadnum: u32,
+    pub unknown: u32,
+    pub files: u32,
+    pub dirs: u32,
     pub slotsfull: u32,
-    pub country:   String,
+    pub country: String,
 }
 
 impl SlskRead for UserJoinedRoom {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
         Ok(Self {
-            room:      String::read(buf)?,
-            username:  String::read(buf)?,
-            status:    u32::read(buf)?,
-            avgspeed:  u32::read(buf)?,
+            room: String::read(buf)?,
+            username: String::read(buf)?,
+            status: u32::read(buf)?,
+            avgspeed: u32::read(buf)?,
             uploadnum: u32::read(buf)?,
-            unknown:   u32::read(buf)?,
-            files:     u32::read(buf)?,
-            dirs:      u32::read(buf)?,
+            unknown: u32::read(buf)?,
+            files: u32::read(buf)?,
+            dirs: u32::read(buf)?,
             slotsfull: u32::read(buf)?,
-            country:   String::read(buf)?,
+            country: String::read(buf)?,
         })
     }
 }

@@ -1,13 +1,13 @@
-use bytes::BufMut;
 use crate::codec::SlskWrite;
+use bytes::BufMut;
 
 pub const CODE: u32 = 42;
 
 #[derive(Debug, Clone)]
 pub struct UserSearchRequest {
     pub username: String,
-    pub token:    u32,
-    pub query:    String,
+    pub token: u32,
+    pub query: String,
 }
 
 impl SlskWrite for UserSearchRequest {
@@ -21,8 +21,8 @@ impl SlskWrite for UserSearchRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn user_search_request_round_trip() {

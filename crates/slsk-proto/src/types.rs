@@ -3,9 +3,9 @@ use crate::codec::{SlskRead, SlskWrite};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum ConnectionType {
-    PeerToPeer  = b'P',
+    PeerToPeer = b'P',
     FileTransfer = b'F',
-    Distributed  = b'D',
+    Distributed = b'D',
 }
 
 impl TryFrom<u8> for ConnectionType {
@@ -39,8 +39,8 @@ impl SlskRead for ConnectionType {
 #[repr(u32)]
 pub enum UserStatus {
     Offline = 0,
-    Away    = 1,
-    Online  = 2,
+    Away = 1,
+    Online = 2,
 }
 
 impl TryFrom<u32> for UserStatus {
@@ -74,7 +74,7 @@ impl SlskRead for UserStatus {
 #[repr(u32)]
 pub enum TransferDirection {
     Download = 0,
-    Upload   = 1,
+    Upload = 1,
 }
 
 impl TryFrom<u32> for TransferDirection {
@@ -106,11 +106,11 @@ impl SlskRead for TransferDirection {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum FileAttributeType {
-    Bitrate    = 0,
-    Duration   = 1,
-    Vbr        = 2,
+    Bitrate = 0,
+    Duration = 1,
+    Vbr = 2,
     SampleRate = 4,
-    BitDepth   = 5,
+    BitDepth = 5,
 }
 
 impl TryFrom<u32> for FileAttributeType {

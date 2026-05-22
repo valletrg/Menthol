@@ -1,14 +1,14 @@
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u32 = 26;
 
 // Outgoing search request
 #[derive(Debug, Clone)]
 pub struct FileSearchRequest {
-    pub token:      u32,
-    pub query:      String,
+    pub token: u32,
+    pub query: String,
 }
 
 impl SlskWrite for FileSearchRequest {
@@ -22,16 +22,16 @@ impl SlskWrite for FileSearchRequest {
 #[derive(Debug, Clone)]
 pub struct FileSearchResponse {
     pub username: String,
-    pub token:    u32,
-    pub query:    String,
+    pub token: u32,
+    pub query: String,
 }
 
 impl SlskRead for FileSearchResponse {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
         Ok(Self {
             username: String::read(buf)?,
-            token:    u32::read(buf)?,
-            query:    String::read(buf)?,
+            token: u32::read(buf)?,
+            query: String::read(buf)?,
         })
     }
 }
@@ -39,8 +39,8 @@ impl SlskRead for FileSearchResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn file_search_request_round_trip() {

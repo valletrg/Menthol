@@ -1,6 +1,6 @@
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u32 = 57;
 
@@ -18,11 +18,11 @@ impl SlskWrite for UserInterestsRequest {
 
 #[derive(Debug, Clone)]
 pub struct UserInterestsResponse {
-    pub username:        String,
-    pub num_likes:       u32,
-    pub likes:           Vec<String>,
-    pub num_hates:       u32,
-    pub hates:           Vec<String>,
+    pub username: String,
+    pub num_likes: u32,
+    pub likes: Vec<String>,
+    pub num_hates: u32,
+    pub hates: Vec<String>,
 }
 
 impl SlskRead for UserInterestsResponse {
@@ -38,7 +38,13 @@ impl SlskRead for UserInterestsResponse {
         for _ in 0..num_hates {
             hates.push(String::read(buf)?);
         }
-        Ok(Self { username, num_likes, likes, num_hates, hates })
+        Ok(Self {
+            username,
+            num_likes,
+            likes,
+            num_hates,
+            hates,
+        })
     }
 }
 
@@ -48,7 +54,9 @@ mod tests {
 
     #[test]
     fn user_interests_request_round_trip() {
-        let req = UserInterestsRequest { username: "alice".into() };
+        let req = UserInterestsRequest {
+            username: "alice".into(),
+        };
         let mut buf = BytesMut::new();
         req.write(&mut buf);
         let mut buf = buf.freeze();

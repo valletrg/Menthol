@@ -1,5 +1,5 @@
-use bytes::{Buf, BufMut, Bytes, BytesMut};
 use crate::error::ProtoError;
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 pub trait SlskRead: Sized {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError>;
@@ -27,7 +27,10 @@ impl SlskWrite for u8 {
 impl SlskRead for u16 {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
         if buf.remaining() < 2 {
-            return Err(ProtoError::UnexpectedEof { needed: 2, have: buf.remaining() });
+            return Err(ProtoError::UnexpectedEof {
+                needed: 2,
+                have: buf.remaining(),
+            });
         }
         Ok(buf.get_u16_le())
     }
@@ -42,7 +45,10 @@ impl SlskWrite for u16 {
 impl SlskRead for u32 {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
         if buf.remaining() < 4 {
-            return Err(ProtoError::UnexpectedEof { needed: 4, have: buf.remaining() });
+            return Err(ProtoError::UnexpectedEof {
+                needed: 4,
+                have: buf.remaining(),
+            });
         }
         Ok(buf.get_u32_le())
     }
@@ -57,7 +63,10 @@ impl SlskWrite for u32 {
 impl SlskRead for i32 {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
         if buf.remaining() < 4 {
-            return Err(ProtoError::UnexpectedEof { needed: 4, have: buf.remaining() });
+            return Err(ProtoError::UnexpectedEof {
+                needed: 4,
+                have: buf.remaining(),
+            });
         }
         Ok(buf.get_i32_le())
     }
@@ -72,7 +81,10 @@ impl SlskWrite for i32 {
 impl SlskRead for u64 {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
         if buf.remaining() < 8 {
-            return Err(ProtoError::UnexpectedEof { needed: 8, have: buf.remaining() });
+            return Err(ProtoError::UnexpectedEof {
+                needed: 8,
+                have: buf.remaining(),
+            });
         }
         Ok(buf.get_u64_le())
     }
@@ -101,7 +113,10 @@ impl SlskRead for String {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
         let len = u32::read(buf)? as usize;
         if buf.remaining() < len {
-            return Err(ProtoError::UnexpectedEof { needed: len, have: buf.remaining() });
+            return Err(ProtoError::UnexpectedEof {
+                needed: len,
+                have: buf.remaining(),
+            });
         }
         let bytes = buf.copy_to_bytes(len);
         Ok(String::from_utf8(bytes.to_vec())?)
@@ -120,7 +135,10 @@ impl SlskRead for Bytes {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
         let len = u32::read(buf)? as usize;
         if buf.remaining() < len {
-            return Err(ProtoError::UnexpectedEof { needed: len, have: buf.remaining() });
+            return Err(ProtoError::UnexpectedEof {
+                needed: len,
+                have: buf.remaining(),
+            });
         }
         Ok(buf.copy_to_bytes(len))
     }

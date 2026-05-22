@@ -1,6 +1,6 @@
-use bytes::{Buf, BufMut};
-use crate::codec::{SlskRead, SlskWrite};
+use crate::codec::SlskRead;
 use crate::error::ProtoError;
+use bytes::Buf;
 
 pub const CODE: u32 = 110;
 
@@ -8,7 +8,7 @@ pub const CODE: u32 = 110;
 #[derive(Debug, Clone)]
 pub struct SimilarUsersResponse {
     pub num_users: u32,
-    pub users:     Vec<(String, u32)>,
+    pub users: Vec<(String, u32)>,
 }
 
 impl SlskRead for SimilarUsersResponse {

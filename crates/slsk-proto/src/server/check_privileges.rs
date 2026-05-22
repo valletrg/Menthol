@@ -1,6 +1,6 @@
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u32 = 92;
 
@@ -19,7 +19,9 @@ pub struct CheckPrivilegesResponse {
 
 impl SlskRead for CheckPrivilegesResponse {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
-        Ok(Self { time_left: u32::read(buf)? })
+        Ok(Self {
+            time_left: u32::read(buf)?,
+        })
     }
 }
 

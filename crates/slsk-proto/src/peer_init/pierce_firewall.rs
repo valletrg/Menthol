@@ -1,6 +1,6 @@
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u8 = 0;
 
@@ -19,15 +19,17 @@ impl SlskWrite for PierceFirewallRequest {
 
 impl SlskRead for PierceFirewallRequest {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
-        Ok(Self { token: u32::read(buf)? })
+        Ok(Self {
+            token: u32::read(buf)?,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn pierce_firewall_request_round_trip() {

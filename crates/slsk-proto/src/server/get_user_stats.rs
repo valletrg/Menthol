@@ -1,6 +1,6 @@
-use bytes::{Buf, BufMut};
 use crate::codec::{SlskRead, SlskWrite};
 use crate::error::ProtoError;
+use bytes::{Buf, BufMut};
 
 pub const CODE: u32 = 36;
 
@@ -17,23 +17,23 @@ impl SlskWrite for GetUserStatsRequest {
 
 #[derive(Debug, Clone)]
 pub struct GetUserStatsResponse {
-    pub username:  String,
+    pub username: String,
     pub avgspeed: u32,
     pub uploadnum: u32,
-    pub unknown:   u32,
-    pub files:     u32,
-    pub dirs:      u32,
+    pub unknown: u32,
+    pub files: u32,
+    pub dirs: u32,
 }
 
 impl SlskRead for GetUserStatsResponse {
     fn read(buf: &mut impl Buf) -> Result<Self, ProtoError> {
         Ok(Self {
-            username:  String::read(buf)?,
-            avgspeed:  u32::read(buf)?,
+            username: String::read(buf)?,
+            avgspeed: u32::read(buf)?,
             uploadnum: u32::read(buf)?,
-            unknown:   u32::read(buf)?,
-            files:     u32::read(buf)?,
-            dirs:      u32::read(buf)?,
+            unknown: u32::read(buf)?,
+            files: u32::read(buf)?,
+            dirs: u32::read(buf)?,
         })
     }
 }
@@ -41,12 +41,14 @@ impl SlskRead for GetUserStatsResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
     use crate::codec::SlskRead;
+    use bytes::BytesMut;
 
     #[test]
     fn get_user_stats_request_round_trip() {
-        let req = GetUserStatsRequest { username: "alice".into() };
+        let req = GetUserStatsRequest {
+            username: "alice".into(),
+        };
         let mut buf = BytesMut::new();
         req.write(&mut buf);
         let mut buf = buf.freeze();
