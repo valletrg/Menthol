@@ -34,9 +34,7 @@ where
 
 /// Open incomplete file for append (resume support).
 /// The file offset at open time becomes our resume position.
-pub async fn open_incomplete(
-    path: &Path,
-) -> std::io::Result<(tokio::fs::File, u64)> {
+pub async fn open_incomplete(path: &Path) -> std::io::Result<(tokio::fs::File, u64)> {
     let file = OpenOptions::new()
         .write(true)
         .create(true)

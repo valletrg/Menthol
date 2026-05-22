@@ -46,11 +46,11 @@ where
         total_read += n as u64;
 
         // Grow chunk size proportionally to last send (per spec §3.4)
-        chunk_size = ((last_sent as f64 * 1.25) as usize)
-            .clamp(CHUNK_INITIAL, CHUNK_MAX);
+        chunk_size = ((last_sent as f64 * 1.25) as usize).clamp(CHUNK_INITIAL, CHUNK_MAX);
         last_sent = n;
 
-        tx.send(buf.freeze()).await
+        tx.send(buf.freeze())
+            .await
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::BrokenPipe, e))?;
     }
 

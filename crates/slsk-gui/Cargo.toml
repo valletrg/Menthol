@@ -6,8 +6,11 @@ edition = "2021"
 [dependencies]
 slsk-core = { path = "../slsk-core" }
 gtk4 = { version = "0.9", package = "gtk4" }
-adw = { version = "0.7", package = "libadwaita", features = ["v1_6"] }
+adw = { version = "0.7", package = "libadwaita", features = ["v1_4", "v1_6"] }
 glib = "0.20"
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dirs = "5"

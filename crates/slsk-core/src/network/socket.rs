@@ -35,7 +35,10 @@ mod tests {
 
     #[test]
     fn connection_type_to_string() {
-        assert_eq!(format!("{:?}", ConnectionType::FileTransfer), "FileTransfer");
+        assert_eq!(
+            format!("{:?}", ConnectionType::FileTransfer),
+            "FileTransfer"
+        );
         assert_eq!(format!("{:?}", ConnectionType::PeerToPeer), "PeerToPeer");
         assert_eq!(format!("{:?}", ConnectionType::Distributed), "Distributed");
     }

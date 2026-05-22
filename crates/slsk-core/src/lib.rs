@@ -44,6 +44,32 @@ impl CoreHandle {
     pub fn poll_event(&mut self) -> Option<Event> {
         self.evt_rx.try_recv().ok()
     }
+
+    /// Initiate a file search with the given query. Returns a token to track results.
+    /// Results arrive as `Event::SearchResult` with matching token.
+    pub fn search(&self, query: String) -> u32 {
+        let token = rand_token();
+        let _ = self.cmd_tx.blocking_send(Command::Search { query, token });
+        token
+    }
+
+    /// Queue a download from a peer.
+    pub fn queue_download(&self, username: String, filename: String, size: u64) {
+        let _ = self.cmd_tx.blocking_send(Command::QueueDownload {
+            username,
+            filename,
+            size,
+        });
+    }
+}
+
+/// Generate a random token for search correlation.
+fn rand_token() -> u32 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos() as u32
 }
 
 /// The core async entry point

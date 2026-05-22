@@ -13,3 +13,5 @@ bytes      = { workspace = true }
 md5        = { workspace = true }
 socket2    = "0.5"
 libc       = "0.2"
+zlib       = "0.4"
+rand       = "0.8"

@@ -9,9 +9,19 @@ pub enum Event {
     Disconnected {
         reason: Option<String>,
     },
+    /// Incoming search result from a peer (via server relay).
+    /// Note: `filename` and `size` require peer-level response handling (code 9).
+    /// This event is emitted when the server relays a peer's FileSearchResponse.
     SearchResult {
         token: u32,
         username: String,
+        filename: String,
+        size: u64,
+    },
+    /// Our search was acknowledged and is now active.
+    SearchStarted {
+        token: u32,
+        query: String,
     },
     TransferProgress {
         id: u64,

@@ -49,7 +49,8 @@ where
             recv_size = (recv_size / 2).max(RECV_INITIAL);
         }
 
-        tx.send(buf.split().freeze()).await
+        tx.send(buf.split().freeze())
+            .await
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::BrokenPipe, e))?;
     }
 

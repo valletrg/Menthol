@@ -7,7 +7,7 @@ use slsk_core::{config::Config, start, Command};
 use std::io::{self, Write};
 
 fn main() {
-    println!("=== slskr CLI Mock UI ===");
+    println!("=== Menthol CLI Mock UI ===");
     println!("Type 'connect <username> <password>' to connect");
     println!("Type 'search <query>' to search");
     println!("Type 'quit' to exit\n");

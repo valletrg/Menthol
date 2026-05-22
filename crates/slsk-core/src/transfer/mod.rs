@@ -76,7 +76,8 @@ impl Transfer {
     }
 
     pub fn bytes_remaining(&self) -> u64 {
-        self.file_size.saturating_sub(self.bytes_transferred + self.offset)
+        self.file_size
+            .saturating_sub(self.bytes_transferred + self.offset)
     }
 }
 
@@ -113,7 +114,8 @@ impl DownloadState {
     }
 
     pub fn bytes_remaining(&self) -> u64 {
-        self.expected_size.saturating_sub(self.bytes_received + self.resume_offset)
+        self.expected_size
+            .saturating_sub(self.bytes_received + self.resume_offset)
     }
 }
 

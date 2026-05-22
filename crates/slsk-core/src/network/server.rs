@@ -14,13 +14,14 @@ use slsk_proto::server;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
+use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
 
 use crate::command::Command;
 use crate::config::Config;
 use crate::event::Event;
 use crate::network::framing::encode_message;
+use crate::network::peer::PeerState;
 use crate::network::state::ServerStats;
 
 // Constants for memory-bounded operation
@@ -77,7 +78,9 @@ pub async fn connect(
             major_version,
             minor_version,
         };
-        if let Err(e) = run_connection(&owned_config, cmd_rx, evt_tx_clone, Arc::clone(&stats)).await {
+        if let Err(e) =
+            run_connection(&owned_config, cmd_rx, evt_tx_clone, Arc::clone(&stats)).await
+        {
             tracing::error!("connection error: {}", e);
         }
     });
@@ -160,7 +163,11 @@ async fn run_connection(
             Err(e) => {
                 tracing::warn!("failed to read login response: {}", e);
                 reconnect_delay = Some(next_reconnect_delay(reconnect_delay));
-                let _ = evt_tx.send(Event::Disconnected { reason: Some(e.to_string()) }).await;
+                let _ = evt_tx
+                    .send(Event::Disconnected {
+                        reason: Some(e.to_string()),
+                    })
+                    .await;
                 tokio::time::sleep(reconnect_delay.unwrap()).await;
                 continue;
             }
@@ -173,7 +180,11 @@ async fn run_connection(
                 hash: _,
                 is_supporter,
             } => {
-                tracing::info!("login success! motd len={}, supporter={}", greet.len(), is_supporter);
+                tracing::info!(
+                    "login success! motd len={}, supporter={}",
+                    greet.len(),
+                    is_supporter
+                );
                 let _ = evt_tx.send(Event::Connected { motd: greet }).await;
                 reconnect_delay = None; // Reset backoff on success
                 relogged = false;
@@ -192,6 +203,45 @@ async fn run_connection(
         }
 
         // Main loop - handle commands and incoming messages
+        // Create shared peer state for all peer connections
+        let peer_state = PeerState::new(
+            config.username.clone(),
+            config.listen_port,
+            evt_tx.clone(),
+        );
+
+        // Start TCP listener for incoming peer connections
+        let peer_listen_addr = format!("0.0.0.0:{}", config.listen_port);
+        let listener: Option<TcpListener> = match TcpListener::bind(&peer_listen_addr).await {
+            Ok(l) => {
+                tracing::info!("peer listener bound to {}", peer_listen_addr);
+                Some(l)
+            }
+            Err(e) => {
+                tracing::warn!("failed to bind peer listener on {}: {}", peer_listen_addr, e);
+                // Continue anyway - peer connections won't work but we can still search
+                None
+            }
+        };
+
+        // Spawn task to accept incoming peer connections
+        if let Some(listener) = listener {
+            let peer_state_clone = peer_state.clone();
+            tokio::spawn(async move {
+                loop {
+                    match listener.accept().await {
+                        Ok((stream, addr)) => {
+                            peer_state_clone.handle_incoming(stream, addr).await;
+                        }
+                        Err(e) => {
+                            tracing::warn!("peer listener error: {}", e);
+                            break;
+                        }
+                    }
+                }
+            });
+        }
+
         'connected: loop {
             tokio::select! {
                 // Incoming message from server
@@ -204,6 +254,40 @@ async fn run_connection(
                                 relogged = true;
                                 let _ = evt_tx.send(Event::Disconnected { reason: Some("Relogged".into()) }).await;
                                 break 'connected;
+                            }
+                            // Handle ConnectToPeer specially - need to initiate peer connection
+                            if code == server::connect_to_peer::CODE {
+                                use server::ServerMessage;
+                                let mut buf = BytesMut::from(payload.as_ref());
+                                match ServerMessage::decode(code, &mut buf) {
+                                    Ok(ServerMessage::ConnectToPeer(resp)) => {
+                                        tracing::info!("ConnectToPeer: {} at {}:{} type={} token={}",
+                                            resp.username, resp.ip, resp.port, resp.conn_type, resp.token);
+                                        // Initiate connection to peer
+                                        let conn_type = match resp.conn_type.as_str() {
+                                            "P" => slsk_proto::types::ConnectionType::PeerToPeer,
+                                            "F" => slsk_proto::types::ConnectionType::FileTransfer,
+                                            "D" => slsk_proto::types::ConnectionType::Distributed,
+                                            _ => {
+                                                tracing::warn!("unknown connection type '{}'", resp.conn_type);
+                                                slsk_proto::types::ConnectionType::PeerToPeer
+                                            }
+                                        };
+                                        if let Err(e) = peer_state.connect_to_peer(
+                                            &resp.username,
+                                            resp.ip,
+                                            resp.port,
+                                            resp.token,
+                                            conn_type,
+                                        ).await {
+                                            tracing::warn!("failed to connect to peer {}: {}", resp.username, e);
+                                        }
+                                    }
+                                    _ => {
+                                        tracing::warn!("ConnectToPeer message decode mismatch");
+                                    }
+                                }
+                                continue;
                             }
                             handle_server_message(code, payload, &evt_tx).await;
                         }
@@ -225,7 +309,13 @@ async fn run_connection(
                             return Ok(());
                         }
                         Some(Command::Search { query, token }) => {
-                            tracing::debug!("search: token={} query={}", token, query);
+                            // Send FileSearchRequest to server (code 26)
+                            let req = server::file_search::FileSearchRequest { token, query: query.clone() };
+                            if let Err(e) = send_server_msg(&mut stream, server::file_search::CODE, &req).await {
+                                tracing::warn!("failed to send search: {}", e);
+                            } else {
+                                let _ = evt_tx.send(Event::SearchStarted { token, query }).await;
+                            }
                         }
                         Some(Command::QueueDownload { username, filename, size }) => {
                             tracing::debug!("queue: {} from {} ({} bytes)", filename, username, size);
@@ -300,10 +390,7 @@ fn configure_server_keepalive(stream: &TcpStream) -> std::io::Result<()> {
 }
 
 /// Send Login + SetWaitPort in same write burst per LOGIN_FLOW.md §2.4
-async fn send_login_and_waitport(
-    stream: &mut TcpStream,
-    config: &Config,
-) -> Result<(), String> {
+async fn send_login_and_waitport(stream: &mut TcpStream, config: &Config) -> Result<(), String> {
     let hash = login_hash(&config.username, &config.password);
 
     // Build Login message
@@ -321,10 +408,20 @@ async fn send_login_and_waitport(
     let waitport_frame = encode_message(server::set_wait_port::CODE, &waitport_req);
 
     // Send both in same burst - write_all is atomic on TCP
-    stream.write_all(&login_frame).await.map_err(|e| e.to_string())?;
-    tracing::debug!("sent Login (major={}, minor={})", config.major_version, config.minor_version);
+    stream
+        .write_all(&login_frame)
+        .await
+        .map_err(|e| e.to_string())?;
+    tracing::debug!(
+        "sent Login (major={}, minor={})",
+        config.major_version,
+        config.minor_version
+    );
 
-    stream.write_all(&waitport_frame).await.map_err(|e| e.to_string())?;
+    stream
+        .write_all(&waitport_frame)
+        .await
+        .map_err(|e| e.to_string())?;
     tracing::debug!("sent SetWaitPort({})", config.listen_port);
 
     Ok(())
@@ -339,24 +436,48 @@ fn login_hash(username: &str, password: &str) -> String {
 }
 
 /// Send post-login burst per LOGIN_FLOW.md §4.8
-async fn send_post_login_burst(
-    stream: &mut TcpStream,
-    config: &Config,
-) -> Result<(), String> {
-    use server::have_no_parent::CODE as HAVE_NO_PARENT_CODE;
-    use server::branch_root::CODE as BRANCH_ROOT_CODE;
-    use server::branch_level::CODE as BRANCH_LEVEL_CODE;
+async fn send_post_login_burst(stream: &mut TcpStream, config: &Config) -> Result<(), String> {
     use server::accept_children::CODE as ACCEPT_CHILDREN_CODE;
+    use server::branch_level::CODE as BRANCH_LEVEL_CODE;
+    use server::branch_root::CODE as BRANCH_ROOT_CODE;
+    use server::have_no_parent::CODE as HAVE_NO_PARENT_CODE;
     use server::shared_folders_files::CODE as SHARED_FOLDERS_FILES_CODE;
 
     // 1-4: Distributed network init (per LOGIN_FLOW.md §4.1)
-    send_server_msg(stream, HAVE_NO_PARENT_CODE, &server::have_no_parent::HaveNoParentRequest { no_parent: true }).await?;
-    send_server_msg(stream, BRANCH_ROOT_CODE, &server::branch_root::BranchRootRequest { branch_root: config.username.clone() }).await?;
-    send_server_msg(stream, BRANCH_LEVEL_CODE, &server::branch_level::BranchLevelRequest { branch_level: 0 }).await?;
-    send_server_msg(stream, ACCEPT_CHILDREN_CODE, &server::accept_children::AcceptChildrenRequest { accept: false }).await?;
+    send_server_msg(
+        stream,
+        HAVE_NO_PARENT_CODE,
+        &server::have_no_parent::HaveNoParentRequest { no_parent: true },
+    )
+    .await?;
+    send_server_msg(
+        stream,
+        BRANCH_ROOT_CODE,
+        &server::branch_root::BranchRootRequest {
+            branch_root: config.username.clone(),
+        },
+    )
+    .await?;
+    send_server_msg(
+        stream,
+        BRANCH_LEVEL_CODE,
+        &server::branch_level::BranchLevelRequest { branch_level: 0 },
+    )
+    .await?;
+    send_server_msg(
+        stream,
+        ACCEPT_CHILDREN_CODE,
+        &server::accept_children::AcceptChildrenRequest { accept: false },
+    )
+    .await?;
 
     // 5: Share counts (per LOGIN_FLOW.md §4.2) - send 0/0 for now
-    send_server_msg(stream, SHARED_FOLDERS_FILES_CODE, &server::shared_folders_files::SharedFoldersFilesRequest { dirs: 0, files: 0 }).await?;
+    send_server_msg(
+        stream,
+        SHARED_FOLDERS_FILES_CODE,
+        &server::shared_folders_files::SharedFoldersFilesRequest { dirs: 0, files: 0 },
+    )
+    .await?;
 
     // Note: RoomList, PrivateRoomToggle, JoinRoom, AddThingILike/AddThingIHate, WatchUser
     // would be sent based on saved state. For now we just do the critical distributed init.
@@ -380,7 +501,10 @@ async fn send_server_msg<T: SlskWrite>(
     frame.put_u32_le(code);
     frame.put_slice(&payload);
 
-    stream.write_all(&frame.freeze()).await.map_err(|e| e.to_string())
+    stream
+        .write_all(&frame.freeze())
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Read and decode one server message from the stream
@@ -404,8 +528,12 @@ async fn read_one_message(
     let mut frame_buf = vec![0u8; total_len];
     stream.read_exact(&mut frame_buf).await?;
 
-    stats.bytes_recv.fetch_add((4 + total_len) as u64, std::sync::atomic::Ordering::Relaxed);
-    stats.messages_recv.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    stats
+        .bytes_recv
+        .fetch_add((4 + total_len) as u64, std::sync::atomic::Ordering::Relaxed);
+    stats
+        .messages_recv
+        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
     let mut buf = BytesMut::with_capacity(total_len);
     buf.put_slice(&frame_buf);
@@ -464,10 +592,15 @@ async fn handle_server_message(code: u32, mut payload: Bytes, evt_tx: &mpsc::Sen
             tracing::trace!("server ping");
         }
         ServerMessage::FileSearch(resp) => {
+            // Server relays FileSearch from a peer. The server tells us:
+            // username + token. The full file metadata comes via peer message code 9.
+            // Emit what we have now; GUI will enrich with peer details later.
             let _ = evt_tx
                 .send(Event::SearchResult {
                     token: resp.token,
                     username: resp.username,
+                    filename: String::new(),
+                    size: 0,
                 })
                 .await;
         }

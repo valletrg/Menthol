@@ -69,9 +69,6 @@ mod tests {
         let mut buf = buf.freeze();
         assert_eq!(u32::read(&mut buf).unwrap(), 12345);
         assert!(!bool::read(&mut buf).unwrap());
-        assert_eq!(
-            String::read(&mut buf).unwrap(),
-            "File not shared."
-        );
+        assert_eq!(String::read(&mut buf).unwrap(), "File not shared.");
     }
 }
