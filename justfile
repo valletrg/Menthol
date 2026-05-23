@@ -4,6 +4,7 @@ test:
 test-proto:
 	cargo test -p slsk-proto
 
+# Run the GUI - REQUIRES: nix-shell first (GTK dependencies)
 run:
 	cargo run -p slsk-gui
 

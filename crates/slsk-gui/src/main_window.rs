@@ -11,9 +11,13 @@ use gtk4::{self as gtk, Align, GestureClick, Image, Label, Orientation};
 use slsk_core::{CoreHandle, Event};
 
 use super::panels::{
-    browse_panel::BrowsePanel, downloads_panel::DownloadsPanel, messages_panel::MessagesPanel,
-    rooms_panel::RoomsPanel, search_panel::{SearchPanel, SearchResult},
-    settings_panel::SettingsPanel, uploads_panel::UploadsPanel,
+    browse_panel::BrowsePanel,
+    downloads_panel::DownloadsPanel,
+    messages_panel::MessagesPanel,
+    rooms_panel::RoomsPanel,
+    search_panel::{SearchPanel, SearchResult},
+    settings_panel::SettingsPanel,
+    uploads_panel::UploadsPanel,
 };
 
 const PAGE_SEARCH: &str = "search";
@@ -34,7 +38,9 @@ pub struct MainWindow {
 
 impl MainWindow {
     pub fn new() -> Self {
-        let container = gtk::Box::builder().orientation(Orientation::Vertical).build();
+        let container = gtk::Box::builder()
+            .orientation(Orientation::Vertical)
+            .build();
 
         // ── Body: sidebar + content stack ────────────────────
         let body = gtk::Box::builder()
@@ -233,8 +239,18 @@ impl MainWindow {
                 tracing::info!("Search started: token={} query={}", token, q);
                 self.search_panel.on_search_started(*token, &q);
             }
-            Event::SearchResult { token, username, filename, size } => {
-                tracing::debug!("Search result token={} from {}: {}", token, username, filename);
+            Event::SearchResult {
+                token,
+                username,
+                filename,
+                size,
+            } => {
+                tracing::debug!(
+                    "Search result token={} from {}: {}",
+                    token,
+                    username,
+                    filename
+                );
                 self.search_panel.add_result(SearchResult {
                     token: *token,
                     username: (*username).clone(),
@@ -248,20 +264,41 @@ impl MainWindow {
             Event::RoomLeft { room } => {
                 tracing::info!("Left room: {}", room);
             }
-            Event::RoomMessage { room, username, message } => {
+            Event::RoomMessage {
+                room,
+                username,
+                message,
+            } => {
                 tracing::debug!("[{}] {}: {}", room, username, message);
             }
-            Event::PrivateMessage { username, message, .. } => {
+            Event::PrivateMessage {
+                username, message, ..
+            } => {
                 tracing::debug!("PM from {}: {}", username, message);
             }
             Event::UserStatusChanged { username, status } => {
                 tracing::debug!("User {} status: {}", username, status);
             }
-            Event::TransferProgress { id, bytes_done, total, direction: _ } => {
+            Event::TransferProgress {
+                id,
+                bytes_done,
+                total,
+                direction: _,
+            } => {
                 tracing::trace!("Transfer {}: {}/{}", id, bytes_done, total);
             }
-            Event::TransferRequest { username, filename, size, token: _ } => {
-                tracing::info!("Transfer request from {}: {} ({} bytes)", username, filename, size);
+            Event::TransferRequest {
+                username,
+                filename,
+                size,
+                token: _,
+            } => {
+                tracing::info!(
+                    "Transfer request from {}: {} ({} bytes)",
+                    username,
+                    filename,
+                    size
+                );
             }
             Event::TransferComplete { id, success } => {
                 tracing::info!("Transfer {} complete: {}", id, success);
@@ -269,11 +306,24 @@ impl MainWindow {
             Event::UploadFailed { username, filename } => {
                 tracing::warn!("Upload failed: {} to {}", filename, username);
             }
-            Event::UploadDenied { username, filename, reason } => {
+            Event::UploadDenied {
+                username,
+                filename,
+                reason,
+            } => {
                 tracing::warn!("Upload denied: {} to {} - {}", filename, username, reason);
             }
-            Event::PlaceInQueue { username, filename, position } => {
-                tracing::debug!("Place in queue: {} at {} for {}", filename, position, username);
+            Event::PlaceInQueue {
+                username,
+                filename,
+                position,
+            } => {
+                tracing::debug!(
+                    "Place in queue: {} at {} for {}",
+                    filename,
+                    position,
+                    username
+                );
             }
         }
     }

@@ -145,6 +145,11 @@ impl SearchPanel {
             return;
         }
 
+        // Ignore empty/invalid results (e.g. from server FileSearch relay)
+        if result.filename.is_empty() || result.size == 0 {
+            return;
+        }
+
         // Deduplicate by (username, filename)
         {
             let mut model = self.results_model.borrow_mut();
@@ -161,8 +166,11 @@ impl SearchPanel {
         self.results_list.append(&row);
 
         let count = self.results_model.borrow().len();
-        self.status_label
-            .set_text(&format!("{} result{}", count, if count == 1 { "" } else { "s" }));
+        self.status_label.set_text(&format!(
+            "{} result{}",
+            count,
+            if count == 1 { "" } else { "s" }
+        ));
     }
 
     /// Wire up the search entry + button. Call after `on_search` has been registered.

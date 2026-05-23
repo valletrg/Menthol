@@ -77,7 +77,11 @@ impl LoginView {
         heading.set_halign(Align::Start);
         picker_box.append(&heading);
 
-        picker_box.append(&Separator::builder().orientation(Orientation::Horizontal).build());
+        picker_box.append(
+            &Separator::builder()
+                .orientation(Orientation::Horizontal)
+                .build(),
+        );
 
         let profile_list = gtk::ListBox::builder().vexpand(true).build();
         profile_list.add_css_class("boxed-list");
@@ -108,15 +112,17 @@ impl LoginView {
         form_heading.set_halign(Align::Start);
         form_box.append(&form_heading);
 
-        form_box.append(&Separator::builder().orientation(Orientation::Horizontal).build());
+        form_box.append(
+            &Separator::builder()
+                .orientation(Orientation::Horizontal)
+                .build(),
+        );
 
         let username_label = Label::new(Some("Username"));
         username_label.set_halign(Align::Start);
         form_box.append(&username_label);
 
-        let username_entry = Entry::builder()
-            .placeholder_text("Enter username")
-            .build();
+        let username_entry = Entry::builder().placeholder_text("Enter username").build();
 
         let password_label = Label::new(Some("Password"));
         password_label.set_halign(Align::Start);
@@ -149,7 +155,10 @@ impl LoginView {
 
         let back_btn = Button::builder().label("Back").halign(Align::Start).build();
 
-        let connect_btn = Button::builder().label("Connect").halign(Align::End).build();
+        let connect_btn = Button::builder()
+            .label("Connect")
+            .halign(Align::End)
+            .build();
         connect_btn.add_css_class("suggested-action");
 
         button_row.append(&back_btn);
@@ -340,9 +349,9 @@ impl LoginView {
     pub fn show_status(&self, status: &ConnectionStatus) {
         match status {
             ConnectionStatus::Connecting => self.status_label.set_text("Connecting..."),
-            ConnectionStatus::ResolvingHost => {
-                self.status_label.set_text("Resolving server.slsknet.org...")
-            }
+            ConnectionStatus::ResolvingHost => self
+                .status_label
+                .set_text("Resolving server.slsknet.org..."),
             ConnectionStatus::ConnectingToServer => {
                 self.status_label.set_text("Connecting to server...")
             }
@@ -353,7 +362,8 @@ impl LoginView {
                 self.spinner.set_visible(false);
             }
             ConnectionStatus::ConnectionFailed(e) => {
-                self.status_label.set_text(&format!("Connection failed: {}", e));
+                self.status_label
+                    .set_text(&format!("Connection failed: {}", e));
                 self.connect_btn.set_sensitive(true);
                 self.spinner.set_visible(false);
             }

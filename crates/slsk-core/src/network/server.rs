@@ -7,9 +7,16 @@
 //! - State machine: Connecting -> LoggingIn -> Connected
 //! - Relogged handled - no auto-reconnect
 //! - Exponential backoff for reconnect
+//!
+//! Search integration per SEARCH_SYSTEM.md:
+//! - Token allow/disallow gate for FileSearchResponse decompression
+//! - Search term sanitization before transmission
+//! - Multiple search modes: global, rooms, buddies, user, wishlist
+//! - Wishlist round-robin timer
+//! - Search history (max 200 entries)
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
-use slsk_proto::codec::SlskWrite;
+use slsk_proto::codec::{SlskRead, SlskWrite};
 use slsk_proto::server;
 use std::sync::Arc;
 use std::time::Duration;
@@ -23,6 +30,7 @@ use crate::event::Event;
 use crate::network::framing::encode_message;
 use crate::network::peer::PeerState;
 use crate::network::state::ServerStats;
+use crate::search::{sanitize_search_term, SearchMode, SearchState};
 
 // Constants for memory-bounded operation
 const MAX_FRAME_SIZE: usize = 2 * 1024 * 1024; // 2 MiB
@@ -202,13 +210,9 @@ async fn run_connection(
             let _ = evt_tx.send(Event::Disconnected { reason: Some(e) }).await;
         }
 
-        // Main loop - handle commands and incoming messages
         // Create shared peer state for all peer connections
-        let peer_state = PeerState::new(
-            config.username.clone(),
-            config.listen_port,
-            evt_tx.clone(),
-        );
+        let peer_state =
+            PeerState::new(config.username.clone(), config.listen_port, evt_tx.clone());
 
         // Start TCP listener for incoming peer connections
         let peer_listen_addr = format!("0.0.0.0:{}", config.listen_port);
@@ -218,7 +222,11 @@ async fn run_connection(
                 Some(l)
             }
             Err(e) => {
-                tracing::warn!("failed to bind peer listener on {}: {}", peer_listen_addr, e);
+                tracing::warn!(
+                    "failed to bind peer listener on {}: {}",
+                    peer_listen_addr,
+                    e
+                );
                 // Continue anyway - peer connections won't work but we can still search
                 None
             }
@@ -227,10 +235,16 @@ async fn run_connection(
         // Spawn task to accept incoming peer connections
         if let Some(listener) = listener {
             let peer_state_clone = peer_state.clone();
+            let listen_port = config.listen_port;
             tokio::spawn(async move {
+                tracing::info!(
+                    "peer listener task started - waiting for connections on 0.0.0.0:{}",
+                    listen_port
+                );
                 loop {
                     match listener.accept().await {
                         Ok((stream, addr)) => {
+                            tracing::info!("peer listener accepted connection from {}", addr);
                             peer_state_clone.handle_incoming(stream, addr).await;
                         }
                         Err(e) => {
@@ -239,8 +253,14 @@ async fn run_connection(
                         }
                     }
                 }
+                tracing::info!("peer listener task ended");
             });
+        } else {
+            tracing::warn!("NO peer listener created - incoming connections will be rejected!");
         }
+
+        // Create search state with token management per SEARCH_SYSTEM.md §3
+        let mut search_state = SearchState::new();
 
         'connected: loop {
             tokio::select! {
@@ -255,33 +275,47 @@ async fn run_connection(
                                 let _ = evt_tx.send(Event::Disconnected { reason: Some("Relogged".into()) }).await;
                                 break 'connected;
                             }
-                            // Handle ConnectToPeer specially - need to initiate peer connection
+                            // Handle ConnectToPeer - peer has search results and will attempt to connect to us.
+                            // We should ALSO dial out to them to increase chances of successful connection.
+                            // Per SEARCH_SYSTEM.md modern connection order: both sides attempt PeerInit.
                             if code == server::connect_to_peer::CODE {
                                 use server::ServerMessage;
                                 let mut buf = BytesMut::from(payload.as_ref());
                                 match ServerMessage::decode(code, &mut buf) {
                                     Ok(ServerMessage::ConnectToPeer(resp)) => {
-                                        tracing::info!("ConnectToPeer: {} at {}:{} type={} token={}",
-                                            resp.username, resp.ip, resp.port, resp.conn_type, resp.token);
-                                        // Initiate connection to peer
-                                        let conn_type = match resp.conn_type.as_str() {
+                                        tracing::info!(
+                                            "ConnectToPeer: peer {} at {}:{} has results token={} type={} - attempting dial-out",
+                                            resp.username, resp.ip, resp.port, resp.token, resp.conn_type
+                                        );
+                                        // Attempt to dial OUT to the peer at their address
+                                        // If direct connection succeeds, we get results; if fails, we're behind symmetric NAT
+                                        let peer_ip = resp.ip;
+                                        let peer_port = resp.port;
+                                        let peer_username = resp.username.clone();
+                                        let peer_conn_type = match resp.conn_type.as_str() {
                                             "P" => slsk_proto::types::ConnectionType::PeerToPeer,
                                             "F" => slsk_proto::types::ConnectionType::FileTransfer,
                                             "D" => slsk_proto::types::ConnectionType::Distributed,
-                                            _ => {
-                                                tracing::warn!("unknown connection type '{}'", resp.conn_type);
-                                                slsk_proto::types::ConnectionType::PeerToPeer
-                                            }
+                                            _ => slsk_proto::types::ConnectionType::PeerToPeer,
                                         };
-                                        if let Err(e) = peer_state.connect_to_peer(
-                                            &resp.username,
-                                            resp.ip,
-                                            resp.port,
-                                            resp.token,
-                                            conn_type,
-                                        ).await {
-                                            tracing::warn!("failed to connect to peer {}: {}", resp.username, e);
-                                        }
+                                        let peer_state_clone = peer_state.clone();
+                                        let evt_tx_clone = evt_tx.clone();
+                                        tokio::spawn(async move {
+                                            match peer_state_clone.connect_to_peer(
+                                                &peer_username,
+                                                peer_ip,
+                                                peer_port,
+                                                resp.token,
+                                                peer_conn_type,
+                                            ).await {
+                                                Ok(()) => {
+                                                    tracing::info!("dial-out to peer {} succeeded", peer_username);
+                                                }
+                                                Err(e) => {
+                                                    tracing::warn!("dial-out to peer {} failed: {}", peer_username, e);
+                                                }
+                                            }
+                                        });
                                     }
                                     _ => {
                                         tracing::warn!("ConnectToPeer message decode mismatch");
@@ -289,7 +323,7 @@ async fn run_connection(
                                 }
                                 continue;
                             }
-                            handle_server_message(code, payload, &evt_tx).await;
+                            handle_server_message(code, payload, &evt_tx, &mut Some(&mut search_state)).await;
                         }
                         Ok(None) => {
                             // Would block - try again
@@ -309,13 +343,69 @@ async fn run_connection(
                             return Ok(());
                         }
                         Some(Command::Search { query, token }) => {
-                            // Send FileSearchRequest to server (code 26)
-                            let req = server::file_search::FileSearchRequest { token, query: query.clone() };
+                            // Global distributed search (code 26) per SEARCH_SYSTEM.md §2
+                            // Use the token provided by the GUI, not a new one
+                            let sanitized = sanitize_search_term(&query);
+                            let mode = SearchMode::Global;
+                            search_state.start_search_with_token(token, mode, sanitized.clone());
+                            let req = server::file_search::FileSearchRequest { token, query: sanitized.term_transmitted.clone() };
                             if let Err(e) = send_server_msg(&mut stream, server::file_search::CODE, &req).await {
                                 tracing::warn!("failed to send search: {}", e);
+                                search_state.remove_search(token);
                             } else {
-                                let _ = evt_tx.send(Event::SearchStarted { token, query }).await;
+                                search_state.add_to_history(&sanitized.term_sanitized);
+                                let _ = evt_tx.send(Event::SearchStarted { token, query: sanitized.term.clone() }).await;
                             }
+                        }
+                        Some(Command::SearchRoom { room, query, token: _ }) => {
+                            // Room search (code 120) per SEARCH_SYSTEM.md §2
+                            let sanitized = sanitize_search_term(&query);
+                            let mode = SearchMode::Room { room: room.clone() };
+                            let token = search_state.start_search(mode, sanitized.clone());
+                            let req = server::room_search::RoomSearchRequest { room: room.clone(), token, query: sanitized.term_transmitted };
+                            if let Err(e) = send_server_msg(&mut stream, server::room_search::CODE, &req).await {
+                                tracing::warn!("failed to send room search: {}", e);
+                                search_state.remove_search(token);
+                            } else {
+                                let _ = evt_tx.send(Event::SearchStarted { token, query: sanitized.term }).await;
+                            }
+                        }
+                        Some(Command::SearchUser { username, query, token: _ }) => {
+                            // User search (code 42) per SEARCH_SYSTEM.md §2
+                            let sanitized = sanitize_search_term(&query);
+                            let mode = SearchMode::User { username: username.clone() };
+                            let token = search_state.start_search(mode, sanitized.clone());
+                            let req = server::user_search::UserSearchRequest { username: username.clone(), token, query: sanitized.term_transmitted };
+                            if let Err(e) = send_server_msg(&mut stream, server::user_search::CODE, &req).await {
+                                tracing::warn!("failed to send user search: {}", e);
+                                search_state.remove_search(token);
+                            } else {
+                                let _ = evt_tx.send(Event::SearchStarted { token, query: sanitized.term }).await;
+                            }
+                        }
+                        Some(Command::SearchWishlist { wish_id, query, token: _ }) => {
+                            // Wishlist search (code 103) per SEARCH_SYSTEM.md §2
+                            // Uses WishlistSearchRequest which has same format as FileSearch but different code
+                            let sanitized = sanitize_search_term(&query);
+                            let mode = SearchMode::Wishlist { wish_id };
+                            let token = search_state.start_search(mode, sanitized.clone());
+                            let req = server::wishlist_search::WishlistSearchRequest { token, query: sanitized.term_transmitted };
+                            if let Err(e) = send_server_msg(&mut stream, server::wishlist_search::CODE, &req).await {
+                                tracing::warn!("failed to send wishlist search: {}", e);
+                                search_state.ignore_wishlist_search(token);
+                            } else {
+                                let _ = evt_tx.send(Event::SearchStarted { token, query: sanitized.term }).await;
+                            }
+                        }
+                        Some(Command::ClearSearchTokens) => {
+                            // Clear all allowed tokens on disconnect per SEARCH_SYSTEM.md §3.3
+                            search_state.clear_allowed_tokens();
+                        }
+                        Some(Command::AddWishlist(term)) => {
+                            search_state.add_to_wishlist(term);
+                        }
+                        Some(Command::RemoveWishlist(idx)) => {
+                            search_state.remove_from_wishlist(idx);
                         }
                         Some(Command::QueueDownload { username, filename, size }) => {
                             tracing::debug!("queue: {} from {} ({} bytes)", filename, username, size);
@@ -565,7 +655,12 @@ async fn read_server_message<T: slsk_proto::codec::SlskRead>(
     Ok(msg)
 }
 
-async fn handle_server_message(code: u32, mut payload: Bytes, evt_tx: &mpsc::Sender<Event>) {
+async fn handle_server_message(
+    code: u32,
+    mut payload: Bytes,
+    evt_tx: &mpsc::Sender<Event>,
+    search_state: &mut Option<&mut SearchState>,
+) {
     use server::ServerMessage;
 
     let msg = match ServerMessage::decode(code, &mut payload) {
@@ -592,17 +687,28 @@ async fn handle_server_message(code: u32, mut payload: Bytes, evt_tx: &mpsc::Sen
             tracing::trace!("server ping");
         }
         ServerMessage::FileSearch(resp) => {
-            // Server relays FileSearch from a peer. The server tells us:
-            // username + token. The full file metadata comes via peer message code 9.
-            // Emit what we have now; GUI will enrich with peer details later.
-            let _ = evt_tx
-                .send(Event::SearchResult {
-                    token: resp.token,
-                    username: resp.username,
-                    filename: String::new(),
-                    size: 0,
-                })
-                .await;
+            // Server relays a FileSearch from another user (incoming search request).
+            // This is server code 26, same code as our outbound global search.
+            // The searcher username + token tells us who is searching - we should
+            // respond if we have matching files (incoming search handling per SEARCH_SYSTEM.md §7).
+            // Note: actual search results come back via peer connection (peer code 9),
+            // not via this server message. Don't emit SearchResult here.
+            tracing::debug!("incoming FileSearch from {} token={}", resp.username, resp.token);
+        }
+        ServerMessage::WishlistInterval(resp) => {
+            tracing::debug!("received WishlistInterval: {} seconds", resp.interval);
+            if let Some(ss) = search_state {
+                ss.set_wishlist_interval(resp.interval);
+            }
+        }
+        ServerMessage::ExcludedSearchPhrases(resp) => {
+            tracing::debug!(
+                "received ExcludedSearchPhrases: {} phrases",
+                resp.phrases.len()
+            );
+            if let Some(ss) = search_state {
+                ss.set_excluded_phrases(resp.phrases);
+            }
         }
         _ => {
             tracing::trace!("unhandled server message: {:?}", msg);

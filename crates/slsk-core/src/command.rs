@@ -9,6 +9,24 @@ pub enum Command {
         query: String,
         token: u32,
     },
+    /// Room search per SEARCH_SYSTEM.md §2
+    SearchRoom {
+        room: String,
+        query: String,
+        token: u32,
+    },
+    /// User/buddy search per SEARCH_SYSTEM.md §2
+    SearchUser {
+        username: String,
+        query: String,
+        token: u32,
+    },
+    /// Wishlist search per SEARCH_SYSTEM.md §2
+    SearchWishlist {
+        wish_id: usize,
+        query: String,
+        token: u32,
+    },
     QueueDownload {
         username: String,
         filename: String,
@@ -40,4 +58,10 @@ pub enum Command {
         username: String,
         message: String,
     },
+    /// Add a term to the wishlist
+    AddWishlist(String),
+    /// Remove a term from the wishlist by index
+    RemoveWishlist(usize),
+    /// Clear all allowed tokens (called on disconnect per spec §3.3)
+    ClearSearchTokens,
 }

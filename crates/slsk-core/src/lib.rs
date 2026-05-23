@@ -5,6 +5,7 @@ pub mod error;
 pub mod event;
 pub mod io;
 pub mod network;
+pub mod search;
 pub mod transfer;
 
 pub use command::Command;

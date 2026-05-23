@@ -1,5 +1,7 @@
 # Repository Guidelines
 
+> **IMPORTANT:** Always run `nix-shell` first before building the GUI (`cargo build -p slsk-gui`) or running `just run`. The GUI requires GTK4/libadwaita/pkg-config which are provided by `shell.nix`. Without entering nix-shell, GUI builds will fail with missing GTK headers.
+
 This is a Rust workspace implementing the Soulseek protocol (Slsk), containing crates for protocol handling, core networking, GUI, and testing utilities.
 
 ## Project Structure

@@ -28,7 +28,11 @@ impl IndexedFile {
             .extension()
             .map(|e| e.to_string_lossy().to_lowercase())
             .unwrap_or_default();
-        Self { path, size, extension }
+        Self {
+            path,
+            size,
+            extension,
+        }
     }
 }
 
@@ -105,15 +109,13 @@ impl WordIndex {
         max_results: usize,
     ) -> Option<HashSet<usize>> {
         // At least one included word is required (per spec §7.3)
-        if included.is_empty() && partial.is_empty() {
+        // A search for *ello alone returns nothing - partial requires at least one included word
+        if included.is_empty() && !partial.is_empty() {
             return None;
         }
 
-        // All included words must exist in the index
-        for word in included {
-            if !self.index.contains_key(word) {
-                return None;
-            }
+        if included.is_empty() && partial.is_empty() {
+            return None;
         }
 
         // Start with the first included word's result set
@@ -125,10 +127,7 @@ impl WordIndex {
                 .map(|s| s.iter().copied().take(max_results).collect())
                 .unwrap_or_default()
         } else {
-            self.index
-                .get(start_word)
-                .cloned()
-                .unwrap_or_default()
+            self.index.get(start_word).cloned().unwrap_or_default()
         };
 
         let mut results = start_results;
@@ -136,7 +135,7 @@ impl WordIndex {
         // Intersect with remaining included words
         for word in included.iter().skip(1) {
             if let Some(word_results) = self.index.get(word) {
-                results = results.intersection(word_results).copied().collect();
+                results.retain(|idx| word_results.contains(idx));
             } else {
                 results.clear();
             }
@@ -145,20 +144,28 @@ impl WordIndex {
             }
         }
 
-        // Partial words (*ello): find all index words ending in the partial word
+        // Partial words (*ello): find all index words starting with the partial word
         for partial_word in partial {
+            // Partial matching: words that START with the partial word
             let partial_results: HashSet<usize> = self
                 .index
                 .iter()
-                .filter(|(k, _)| k.ends_with(partial_word.as_str()))
+                .filter(|(k, _)| k.starts_with(partial_word.as_str()))
                 .flat_map(|(_, v)| v.iter().copied())
-                .filter(|i| results.contains(i))
                 .collect();
 
             if partial_results.is_empty() {
+                // No files found matching this partial word
                 return None;
             }
-            results = partial_results;
+
+            if results.is_empty() {
+                // First partial match - initialize results
+                results = partial_results;
+            } else {
+                // Intersect with existing results (from included words or previous partial)
+                results.retain(|idx| partial_results.contains(idx));
+            }
         }
 
         // Subtract excluded words
@@ -187,10 +194,12 @@ impl WordIndex {
 
     /// Get all files matching given indices
     pub fn get_many(&self, indices: &HashSet<usize>) -> Vec<&IndexedFile> {
-        indices
-            .iter()
-            .filter_map(|&i| self.files.get(&i))
-            .collect()
+        indices.iter().filter_map(|&i| self.files.get(&i)).collect()
+    }
+
+    /// Iterate over all words in the index (for debugging)
+    pub fn all_words(&self) -> impl Iterator<Item = &String> {
+        self.index.keys()
     }
 
     /// Total number of files indexed
@@ -215,11 +224,10 @@ mod tests {
         index.add_file("pink floyd the wall.mp3".into(), 50_000_000);
         index.add_file("led zeppelin IV.flac".into(), 200_000_000);
 
-        // Basic search
+        // Basic search - single word
         let results = index.search(&["pink".into()], &[], &[], 1000);
         assert!(results.is_some());
-        let results = results.unwrap();
-        assert_eq!(results.len(), 2);
+        assert_eq!(results.unwrap().len(), 2);
 
         // Multi-word AND
         let results = index.search(&["pink".into(), "floyd".into()], &[], &[], 1000);
@@ -230,14 +238,18 @@ mod tests {
         let results = index.search(&["pink".into()], &["floyd".into()], &[], 1000);
         assert!(results.is_none());
 
-        // Partial
-        let results = index.search(&[], &[], &["zepp".into()], 1000);
-        assert!(results.is_some());
-        assert_eq!(results.unwrap().len(), 1);
+        // Partial alone (no included words) returns nothing per spec §7.3
+        // "At least one complete included word is required. A search for *ello alone returns nothing"
+        let results = index.search(&[], &[], &["flo".into()], 1000);
+        assert!(
+            results.is_none(),
+            "partial-only search should return None per spec §7.3"
+        );
 
-        // No match
-        let results = index.search(&["nonexistent".into()], &[], &[], 1000);
-        assert!(results.is_none());
+        // Partial WITH a complete word works
+        let results = index.search(&["pink".into()], &[], &["flo".into()], 1000);
+        assert!(results.is_some());
+        assert_eq!(results.unwrap().len(), 2); // pink floyd files
     }
 
     #[test]

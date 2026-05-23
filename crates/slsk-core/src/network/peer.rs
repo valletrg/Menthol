@@ -9,12 +9,14 @@
 //! parent/child D connections using DistribSearch messages.
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
+use flate2::read::ZlibDecoder;
 use slsk_proto::codec::{SlskRead, SlskWrite};
 use slsk_proto::peer;
-use slsk_proto::peer_init::req::PeerInitRequest;
 use slsk_proto::peer_init::pierce_firewall::PierceFirewallRequest;
+use slsk_proto::peer_init::req::PeerInitRequest;
 use slsk_proto::types::ConnectionType;
 use std::collections::HashMap;
+use std::io::Read;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -89,14 +91,18 @@ impl PeerState {
                                     ConnectionType::Distributed
                                 };
                                 let (reader, _writer) = tokio::io::split(stream);
-                                let conn = PeerConnection::new(
-                                    init.username.clone(),
-                                    addr,
-                                );
+                                let conn = PeerConnection::new(init.username.clone(), addr);
                                 // Store connection and spawn read loop
                                 let username_clone = conn.username.clone();
-                                self.connections.lock().await.insert(username_clone.clone(), conn);
-                                tokio::spawn(peer_read_loop(username_clone, reader, self.evt_tx.clone()));
+                                self.connections
+                                    .lock()
+                                    .await
+                                    .insert(username_clone.clone(), conn);
+                                tokio::spawn(peer_read_loop(
+                                    username_clone,
+                                    reader,
+                                    self.evt_tx.clone(),
+                                ));
                             }
                             Err(e) => {
                                 tracing::warn!("failed to parse PeerInit: {}", e);
@@ -124,7 +130,13 @@ impl PeerState {
         conn_type: slsk_proto::types::ConnectionType,
     ) -> Result<(), std::io::Error> {
         let addr = SocketAddr::from((IpAddr::V4(Ipv4Addr::from(u32::from_be(ip))), port as u16));
-        tracing::info!("connecting to peer {} at {} (token={}, type={:?})", username, addr, token, conn_type);
+        tracing::info!(
+            "connecting to peer {} at {} (token={}, type={:?})",
+            username,
+            addr,
+            token,
+            conn_type
+        );
 
         let stream = match TcpStream::connect(addr).await {
             Ok(s) => {
@@ -144,7 +156,9 @@ impl PeerState {
             conn_type,
             stream,
             self.evt_tx.clone(),
-        ).await {
+        )
+        .await
+        {
             Ok(c) => {
                 tracing::info!("PeerInit sent to {}, read loop spawned", username);
                 c
@@ -156,7 +170,10 @@ impl PeerState {
         };
 
         // Store connection so it's not dropped
-        self.connections.lock().await.insert(username.to_string(), conn);
+        self.connections
+            .lock()
+            .await
+            .insert(username.to_string(), conn);
         Ok(())
     }
 }
@@ -169,10 +186,7 @@ pub struct PeerConnection {
 
 impl PeerConnection {
     /// Create for incoming connection (we are the passive side)
-    pub fn new(
-        username: String,
-        addr: SocketAddr,
-    ) -> Self {
+    pub fn new(username: String, addr: SocketAddr) -> Self {
         Self { username, addr }
     }
 
@@ -204,9 +218,17 @@ impl PeerConnection {
         let frame = encode_peer_init_frame(1, &buf.freeze()); // code 1 = PeerInit
         writer.write_all(&frame).await?;
 
-        tracing::info!("sent PeerInit to {} as {} type={}", peer_addr, our_username, conn_type_str);
+        tracing::info!(
+            "sent PeerInit to {} as {} type={}",
+            peer_addr,
+            our_username,
+            conn_type_str
+        );
 
-        let conn = Self { username, addr: peer_addr };
+        let conn = Self {
+            username,
+            addr: peer_addr,
+        };
         // Spawn read loop
         let username_clone = conn.username.clone();
         tokio::spawn(peer_read_loop(username_clone, reader, evt_tx));
@@ -290,11 +312,20 @@ pub async fn peer_read_loop(
     mut reader: tokio::io::ReadHalf<TcpStream>,
     evt_tx: mpsc::Sender<Event>,
 ) {
-    tracing::info!("peer_read_loop started for {}", username);
+    tracing::info!(
+        "peer_read_loop started for {}, waiting for messages...",
+        username
+    );
     loop {
         match read_peer_frame_raw(&mut reader).await {
-            Ok((code, mut payload)) => {
-                tracing::trace!("peer {} received message code={}", username, code);
+            Ok((code, payload)) => {
+                tracing::info!(
+                    "peer {} received message code={} len={}",
+                    username,
+                    code,
+                    payload.len()
+                );
+                let mut payload = payload;
                 if let Err(e) = handle_peer_message(code, &mut payload, &username, &evt_tx).await {
                     tracing::warn!("error handling peer message from {}: {}", username, e);
                 }
@@ -343,22 +374,72 @@ async fn handle_peer_message(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match code {
         peer::file_search_response::CODE => {
-            let resp = peer::file_search_response::FileSearchResponse::read(payload)?;
+            // FileSearchResponse payload is zlib-compressed per SEARCH_SYSTEM.md §6
+            // Max uncompressed size: 128 MiB per spec
             tracing::info!(
-                "FileSearchResponse from {}: token={} file={} size={}",
+                "peer {} FileSearchResponse RECEIVED, compressed len={}",
                 from_username,
-                resp.token,
-                resp.result.filename,
-                resp.result.size
+                payload.len()
             );
-            let _ = evt_tx
-                .send(Event::SearchResult {
-                    token: resp.token,
-                    username: from_username.to_string(),
-                    filename: resp.result.filename,
-                    size: resp.result.size,
-                })
-                .await;
+            const MAX_UNCOMPRESSED: usize = 128 * 1024 * 1024;
+            let decompressed = match decompress_zlib(payload, MAX_UNCOMPRESSED) {
+                Ok(d) => {
+                    tracing::info!(
+                        "peer {} FileSearchResponse decompressed, {} bytes",
+                        from_username,
+                        d.len()
+                    );
+                    d
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "peer {} FileSearchResponse zlib decompression failed: {}",
+                        from_username,
+                        e
+                    );
+                    return Ok(());
+                }
+            };
+            let mut decomp = decompressed;
+            match peer::file_search_response::FileSearchResponse::read(&mut decomp) {
+                Ok(resp) => {
+                    tracing::info!(
+                        "peer {} FileSearchResponse PARSED: token={} file={} size={}",
+                        from_username,
+                        resp.token,
+                        resp.result.filename,
+                        resp.result.size
+                    );
+                    let send_result = evt_tx
+                        .send(Event::SearchResult {
+                            token: resp.token,
+                            username: from_username.to_string(),
+                            filename: resp.result.filename,
+                            size: resp.result.size,
+                        })
+                        .await;
+                    if let Err(e) = send_result {
+                        tracing::warn!(
+                            "peer {} failed to send SearchResult event to GUI: {}",
+                            from_username,
+                            e
+                        );
+                    } else {
+                        tracing::info!(
+                            "peer {} SearchResult emitted to GUI: token={}",
+                            from_username,
+                            resp.token
+                        );
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "peer {} failed to parse FileSearchResponse: {}",
+                        from_username,
+                        e
+                    );
+                }
+            }
         }
         peer::transfer_request::CODE => {
             let resp = peer::transfer_request::TransferRequest::read(payload)?;
@@ -380,11 +461,42 @@ async fn handle_peer_message(
         }
         peer::queue_upload::CODE => {
             let resp = peer::queue_upload::QueueUpload::read(payload)?;
-            tracing::debug!("QueueUpload from {}: file={}", from_username, resp.filename);
+            tracing::debug!("peer {} QueueUpload: file={}", from_username, resp.filename);
         }
         _ => {
-            tracing::warn!("unhandled peer message code {} from {} (len={})", code, from_username, payload.len());
+            tracing::info!(
+                "peer {} unhandled message code {} (len={})",
+                from_username,
+                code,
+                payload.len()
+            );
         }
     }
     Ok(())
+}
+
+/// Decompress zlib-encoded payload with size limit per SEARCH_SYSTEM.md §6.4
+fn decompress_zlib(input: &Bytes, max_size: usize) -> Result<Bytes, std::io::Error> {
+    use std::io::Read;
+
+    let mut decoder = ZlibDecoder::new(&input[..]);
+    let mut decompressed = Vec::new();
+
+    // Limit decompressed output to prevent memory exhaustion
+    let mut buf = vec![0u8; 8192];
+    loop {
+        if decompressed.len() > max_size {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("decompressed size exceeds {} bytes", max_size),
+            ));
+        }
+        let n = decoder.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        decompressed.extend_from_slice(&buf[..n]);
+    }
+
+    Ok(Bytes::from(decompressed))
 }

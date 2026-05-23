@@ -4,14 +4,12 @@
 //! stripping, and producing the transmitted vs. display terms.
 
 use std::fmt;
-use std::str::FromStr;
 
 /// Characters removed from the transmitted search term per spec §4.2.
 /// These cause SoulseekQt to return no results if present in the wire format.
 pub const REMOVED_SEARCH_CHARS: &[char] = &[
-    '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/',
-    ':', ';', '<', '=', '>', '?', '@', '[', '\\', ']', '^', '_', '`', '{', '|',
-    '}', '~',
+    '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', ':', ';', '<', '=',
+    '>', '?', '@', '[', '\\', ']', '^', '_', '`', '{', '|', '}', '~',
     // Unicode variants
     '\u{2013}', // –
     '\u{2014}', // —
@@ -140,7 +138,11 @@ pub struct SanitizedSearch {
 
 impl fmt::Display for SanitizedSearch {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "SanitizedSearch {{ term: {}, transmitted: {} }}", self.term, self.term_transmitted)
+        write!(
+            f,
+            "SanitizedSearch {{ term: {}, transmitted: {} }}",
+            self.term, self.term_transmitted
+        )
     }
 }
 
@@ -217,25 +219,49 @@ mod tests {
     #[test]
     fn test_tokenize_basic() {
         let tokens = tokenize_search("hello world");
-        assert_eq!(tokens, vec![Token::Word("hello".into()), Token::Word("world".into())]);
+        assert_eq!(
+            tokens,
+            vec![Token::Word("hello".into()), Token::Word("world".into())]
+        );
     }
 
     #[test]
     fn test_tokenize_excluded() {
         let tokens = tokenize_search("flac -320kbps");
-        assert_eq!(tokens, vec![Token::Word("flac".into()), Token::Excluded("320kbps".into())]);
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Word("flac".into()),
+                Token::Excluded("320kbps".into())
+            ]
+        );
     }
 
     #[test]
     fn test_tokenize_partial() {
         let tokens = tokenize_search("*flo dark side");
-        assert_eq!(tokens, vec![Token::Partial("flo".into()), Token::Word("dark".into()), Token::Word("side".into())]);
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Partial("flo".into()),
+                Token::Word("dark".into()),
+                Token::Word("side".into())
+            ]
+        );
     }
 
     #[test]
     fn test_tokenize_phrase() {
         let tokens = tokenize_search("\"dark side\" of the moon");
-        assert_eq!(tokens, vec![Token::Phrase("dark side".into()), Token::Word("of".into()), Token::Word("the".into()), Token::Word("moon".into())]);
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Phrase("dark side".into()),
+                Token::Word("of".into()),
+                Token::Word("the".into()),
+                Token::Word("moon".into())
+            ]
+        );
     }
 
     #[test]

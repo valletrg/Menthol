@@ -47,9 +47,8 @@ pub fn load_profiles() -> Vec<Profile> {
 pub fn save_profiles(profiles: &[Profile]) -> std::io::Result<()> {
     ensure_dir()?;
     let path = profile_path();
-    let json = serde_json::to_string_pretty(profiles).map_err(|e| {
-        std::io::Error::new(std::io::ErrorKind::InvalidData, e)
-    })?;
+    let json = serde_json::to_string_pretty(profiles)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     fs::write(path, json)
 }
 

@@ -27,10 +27,10 @@
 //! | `user`    | `UserSearch`    | 42   | A specific username            |
 //! | `wishlist`| `WishlistSearch`| 103  | Same as global, rate-limited   |
 
-pub mod search;
 pub mod sanitize;
+pub mod search;
 pub mod word_index;
 
-pub use search::{SearchMode, SearchState};
-pub use sanitize::SanitizedSearch;
+pub use sanitize::{sanitize_search_term, SanitizedSearch};
+pub use search::{FileSearchResult, SearchMode, SearchRequest, SearchState, WishlistItem};
 pub use word_index::WordIndex;
